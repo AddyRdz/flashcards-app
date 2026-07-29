@@ -10,7 +10,10 @@
     <div class="app-shell">
       <header class="app-header">
         <h1>Flashcards</h1>
-        <button id="new-deck-btn" type="button">New Deck</button>
+        <div class="header-actions">
+          <button id="new-card-header-btn" type="button" class="secondary-button">New Card</button>
+          <button id="new-deck-btn" type="button">New Deck</button>
+        </div>
       </header>
 
       <aside class="sidebar">
@@ -23,9 +26,29 @@
 
       <main class="main-content">
         <section class="card-preview" aria-live="polite">
+          <div class="card-toolbar">
+            <button id="new-card-btn" type="button">New Card</button>
+            <div class="study-controls">
+              <button id="prev-card-btn" type="button" class="secondary-button">Previous</button>
+              <button id="flip-card-btn" type="button" class="secondary-button">Flip</button>
+              <button id="next-card-btn" type="button" class="secondary-button">Next</button>
+            </div>
+          </div>
+
           <p class="card-label" id="deck-status">Select a deck</p>
           <h3 id="deck-title">No deck selected</h3>
+
+          <button id="study-card" class="study-card" type="button" aria-label="Flip current card">
+            <span class="study-card-face study-card-front" id="study-card-front">Create or choose a deck to begin studying.</span>
+            <span class="study-card-face study-card-back" id="study-card-back"></span>
+          </button>
+
           <p id="deck-summary">Create or choose a deck to begin studying.</p>
+
+          <div class="card-list-panel">
+            <h4>Cards in this deck</h4>
+            <ul id="card-list" class="card-list"></ul>
+          </div>
         </section>
       </main>
 
@@ -40,9 +63,23 @@
         <button class="modal-close" type="button" data-close-modal="true" aria-label="Close dialog">×</button>
         <h2 id="modal-title">Create deck</h2>
         <p id="modal-description">Add a new deck to your study collection.</p>
-        <form id="deck-form">
+
+        <form id="deck-form" class="modal-form">
           <label class="sr-only" for="deck-name-input">Deck name</label>
           <input id="deck-name-input" name="deckName" type="text" required maxlength="60" autocomplete="off" />
+          <div class="modal-actions">
+            <button type="button" class="secondary-button" data-close-modal="true">Cancel</button>
+            <button type="submit">Save</button>
+          </div>
+        </form>
+
+        <form id="card-form" class="modal-form hidden">
+          <label class="sr-only" for="card-front-input">Front</label>
+          <input id="card-front-input" name="cardFront" type="text" required maxlength="80" autocomplete="off" placeholder="Front" />
+
+          <label class="sr-only" for="card-back-input">Back</label>
+          <textarea id="card-back-input" name="cardBack" required maxlength="160" rows="4" placeholder="Back"></textarea>
+
           <div class="modal-actions">
             <button type="button" class="secondary-button" data-close-modal="true">Cancel</button>
             <button type="submit">Save</button>

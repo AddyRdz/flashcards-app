@@ -2,34 +2,53 @@ const decks = [
   {
     id: createDeckId(),
     name: 'Spanish Basics',
-    cards: [{ front: '¿Cómo estás?', back: 'How are you?' }],
+    cards: [{ id: createCardId(), front: '¿Cómo estás?', back: 'How are you?' }],
   },
   {
     id: createDeckId(),
     name: 'JavaScript',
-    cards: [{ front: 'const', back: 'Declares a block-scoped variable' }],
+    cards: [{ id: createCardId(), front: 'const', back: 'Declares a block-scoped variable' }],
   },
 ];
 
 let selectedDeckId = decks[0]?.id ?? null;
 let activeModalMode = null;
 let activeDeckId = null;
+let activeCardId = null;
 let lastFocusedElement = null;
+let currentCardIndex = 0;
+let isStudyCardFlipped = false;
 
 const deckList = document.getElementById('deck-list');
+const cardList = document.getElementById('card-list');
 const modal = document.getElementById('deck-modal');
 const modalTitle = document.getElementById('modal-title');
 const modalDescription = document.getElementById('modal-description');
 const deckForm = document.getElementById('deck-form');
+const cardForm = document.getElementById('card-form');
 const deckNameInput = document.getElementById('deck-name-input');
+const cardFrontInput = document.getElementById('card-front-input');
+const cardBackInput = document.getElementById('card-back-input');
 const newDeckButton = document.getElementById('new-deck-btn');
 const addDeckButton = document.getElementById('add-deck-btn');
+const newCardHeaderButton = document.getElementById('new-card-header-btn');
+const newCardButton = document.getElementById('new-card-btn');
+const prevCardButton = document.getElementById('prev-card-btn');
+const flipCardButton = document.getElementById('flip-card-btn');
+const nextCardButton = document.getElementById('next-card-btn');
+const studyCardButton = document.getElementById('study-card');
+const studyCardFront = document.getElementById('study-card-front');
+const studyCardBack = document.getElementById('study-card-back');
 const deckStatus = document.getElementById('deck-status');
 const deckTitle = document.getElementById('deck-title');
 const deckSummary = document.getElementById('deck-summary');
 
 function createDeckId() {
   return `deck-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function createCardId() {
+  return `card-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 function escapeHtml(value) {
@@ -43,6 +62,17 @@ function escapeHtml(value) {
 
 function getSelectedDeck() {
   return decks.find((deck) => deck.id === selectedDeckId) ?? null;
+}
+
+function clampCurrentCardIndex(deck) {
+  if (!deck || !deck.cards.length) {
+    currentCardIndex = 0;
+    return;
+  }
+
+  if (currentCardIndex >= deck.cards.length) {
+    currentCardIndex = deck.cards.length - 1;
+  }
 }
 
 function renderDecks() {
@@ -71,6 +101,66 @@ function renderDecks() {
     .join('');
 }
 
+function renderCards() {
+  if (!cardList) return;
+
+  const deck = getSelectedDeck();
+
+  if (!deck || !deck.cards.length) {
+    cardList.innerHTML = '<li class="empty-state">No cards yet.</li>';
+    return;
+  }
+
+  cardList.innerHTML = deck.cards
+    .map((card, index) => {
+      const currentClass = index === currentCardIndex ? 'current' : '';
+      return `
+        <li class="card-list-item ${currentClass}">
+          <div class="card-list-content">
+            <strong>${escapeHtml(card.front)}</strong>
+            <span>${escapeHtml(card.back)}</span>
+          </div>
+          <div class="card-list-actions">
+            <button class="icon-button" type="button" data-action="edit-card" data-id="${card.id}">Edit</button>
+            <button class="icon-button danger" type="button" data-action="delete-card" data-id="${card.id}">Delete</button>
+          </div>
+        </li>
+      `;
+    })
+    .join('');
+}
+
+function updateStudyCardView() {
+  const deck = getSelectedDeck();
+
+  if (!deck || !deck.cards.length) {
+    deckStatus.textContent = 'No cards yet';
+    deckTitle.textContent = deck?.name ?? 'No deck selected';
+    deckSummary.textContent = 'Create a card to start studying.';
+    if (studyCardFront) studyCardFront.textContent = 'Create or choose a deck to begin studying.';
+    if (studyCardBack) studyCardBack.textContent = '';
+    if (studyCardButton) studyCardButton.classList.remove('is-flipped');
+    return;
+  }
+
+  clampCurrentCardIndex(deck);
+  const card = deck.cards[currentCardIndex];
+
+  if (!card) {
+    return;
+  }
+
+  deckStatus.textContent = `Card ${currentCardIndex + 1} of ${deck.cards.length}`;
+  deckTitle.textContent = deck.name;
+  deckSummary.textContent = isStudyCardFlipped ? `Back: ${card.back}` : `Front: ${card.front}`;
+
+  if (studyCardFront) studyCardFront.textContent = card.front;
+  if (studyCardBack) studyCardBack.textContent = card.back;
+  if (studyCardButton) {
+    studyCardButton.classList.toggle('is-flipped', isStudyCardFlipped);
+  }
+}
+
 function updateDeckPreview() {
   const deck = getSelectedDeck();
 
@@ -78,33 +168,63 @@ function updateDeckPreview() {
     deckStatus.textContent = 'No deck selected';
     deckTitle.textContent = 'Create a deck';
     deckSummary.textContent = 'Use the new deck button to begin building your study set.';
+    if (studyCardFront) studyCardFront.textContent = 'Create or choose a deck to begin studying.';
+    if (studyCardBack) studyCardBack.textContent = '';
+    if (studyCardButton) studyCardButton.classList.remove('is-flipped');
     return;
   }
 
-  deckStatus.textContent = `${deck.cards.length} card${deck.cards.length === 1 ? '' : 's'}`;
-  deckTitle.textContent = deck.name;
-  deckSummary.textContent = deck.cards[0]
-    ? `${deck.cards[0].front} → ${deck.cards[0].back}`
-    : 'Add cards soon to start studying.';
+  renderCards();
+  updateStudyCardView();
 }
 
-function openModal(mode, deckId = null) {
+function setModalMode(mode, options = {}) {
   activeModalMode = mode;
-  activeDeckId = deckId;
+  activeDeckId = options.deckId ?? selectedDeckId;
+  activeCardId = options.cardId ?? null;
   lastFocusedElement = document.activeElement;
 
-  const deck = decks.find((item) => item.id === deckId) ?? null;
-  modalTitle.textContent = mode === 'edit' ? 'Rename deck' : 'Create deck';
-  modalDescription.textContent = mode === 'edit'
-    ? 'Update the selected deck name.'
-    : 'Add a new deck to your study collection.';
-  deckNameInput.value = deck?.name ?? '';
+  if (deckForm) {
+    deckForm.classList.toggle('hidden', mode !== 'deck');
+  }
+  if (cardForm) {
+    cardForm.classList.toggle('hidden', mode !== 'card');
+  }
+
+  if (mode === 'deck') {
+    const deck = decks.find((item) => item.id === activeDeckId) ?? null;
+    modalTitle.textContent = options.cardId ? 'Rename deck' : 'Create deck';
+    modalDescription.textContent = options.cardId ? 'Update the selected deck name.' : 'Add a new deck to your study collection.';
+    if (deckNameInput) {
+      deckNameInput.value = deck?.name ?? '';
+    }
+  }
+
+  if (mode === 'card') {
+    const deck = decks.find((item) => item.id === activeDeckId) ?? null;
+    const card = deck?.cards.find((item) => item.id === activeCardId) ?? null;
+    modalTitle.textContent = activeCardId ? 'Edit card' : 'New card';
+    modalDescription.textContent = activeCardId ? 'Update this card.' : 'Add a new card to the current deck.';
+    if (cardFrontInput) {
+      cardFrontInput.value = card?.front ?? '';
+    }
+    if (cardBackInput) {
+      cardBackInput.value = card?.back ?? '';
+    }
+  }
 
   modal.classList.remove('hidden');
   document.body.classList.add('modal-open');
+
   window.requestAnimationFrame(() => {
-    deckNameInput.focus();
-    deckNameInput.select();
+    if (mode === 'deck' && deckNameInput) {
+      deckNameInput.focus();
+      deckNameInput.select();
+    }
+    if (mode === 'card' && cardFrontInput) {
+      cardFrontInput.focus();
+      cardFrontInput.select();
+    }
   });
 }
 
@@ -116,6 +236,15 @@ function closeModal() {
   }
   activeModalMode = null;
   activeDeckId = null;
+  activeCardId = null;
+}
+
+function selectDeck(deckId) {
+  selectedDeckId = deckId;
+  currentCardIndex = 0;
+  isStudyCardFlipped = false;
+  renderDecks();
+  updateDeckPreview();
 }
 
 function handleDeckListClick(event) {
@@ -126,14 +255,12 @@ function handleDeckListClick(event) {
   const deckId = button.dataset.id;
 
   if (action === 'select') {
-    selectedDeckId = deckId;
-    renderDecks();
-    updateDeckPreview();
+    selectDeck(deckId);
     return;
   }
 
   if (action === 'rename') {
-    openModal('edit', deckId);
+    setModalMode('deck', { deckId });
     return;
   }
 
@@ -145,10 +272,41 @@ function handleDeckListClick(event) {
 
     if (selectedDeckId === deckId) {
       selectedDeckId = decks[0]?.id ?? null;
+      currentCardIndex = 0;
+      isStudyCardFlipped = false;
     }
 
     renderDecks();
     updateDeckPreview();
+  }
+}
+
+function handleCardListClick(event) {
+  const button = event.target.closest('button[data-action]');
+  if (!button) return;
+
+  const action = button.dataset.action;
+  const cardId = button.dataset.id;
+  const deck = getSelectedDeck();
+
+  if (!deck) return;
+
+  if (action === 'edit-card') {
+    setModalMode('card', { deckId: deck.id, cardId });
+    return;
+  }
+
+  if (action === 'delete-card') {
+    const index = deck.cards.findIndex((card) => card.id === cardId);
+    if (index === -1) return;
+
+    deck.cards.splice(index, 1);
+    if (currentCardIndex >= deck.cards.length) {
+      currentCardIndex = Math.max(0, deck.cards.length - 1);
+    }
+    isStudyCardFlipped = false;
+    renderCards();
+    updateStudyCardView();
   }
 }
 
@@ -186,28 +344,75 @@ function handleModalKeydown(event) {
   }
 }
 
-function handleModalSubmit(event) {
-  event.preventDefault();
-  const trimmedName = deckNameInput.value.trim();
-
-  if (!trimmedName) {
-    deckNameInput.focus();
+function openCardComposer() {
+  if (!decks.length) {
+    setModalMode('deck');
     return;
   }
 
-  if (activeModalMode === 'edit' && activeDeckId) {
-    const deck = decks.find((item) => item.id === activeDeckId);
-    if (deck) {
-      deck.name = trimmedName;
+  if (!selectedDeckId) {
+    selectDeck(decks[0].id);
+  }
+
+  setModalMode('card', { deckId: selectedDeckId });
+}
+
+function handleModalSubmit(event) {
+  event.preventDefault();
+
+  if (activeModalMode === 'deck') {
+    const trimmedName = deckNameInput.value.trim();
+
+    if (!trimmedName) {
+      deckNameInput.focus();
+      return;
     }
-  } else {
-    const newDeck = {
-      id: createDeckId(),
-      name: trimmedName,
-      cards: [],
-    };
-    decks.unshift(newDeck);
-    selectedDeckId = newDeck.id;
+
+    if (activeDeckId) {
+      const deck = decks.find((item) => item.id === activeDeckId);
+      if (deck) {
+        deck.name = trimmedName;
+      }
+    } else {
+      const newDeck = {
+        id: createDeckId(),
+        name: trimmedName,
+        cards: [],
+      };
+      decks.unshift(newDeck);
+      selectedDeckId = newDeck.id;
+      currentCardIndex = 0;
+      isStudyCardFlipped = false;
+    }
+  }
+
+  if (activeModalMode === 'card') {
+    const front = cardFrontInput.value.trim();
+    const back = cardBackInput.value.trim();
+
+    if (!front || !back) {
+      if (!front) {
+        cardFrontInput.focus();
+      } else {
+        cardBackInput.focus();
+      }
+      return;
+    }
+
+    const deck = decks.find((item) => item.id === activeDeckId) ?? getSelectedDeck();
+    if (!deck) return;
+
+    if (activeCardId) {
+      const card = deck.cards.find((item) => item.id === activeCardId);
+      if (card) {
+        card.front = front;
+        card.back = back;
+      }
+    } else {
+      deck.cards.push({ id: createCardId(), front, back });
+      currentCardIndex = deck.cards.length - 1;
+      isStudyCardFlipped = false;
+    }
   }
 
   renderDecks();
@@ -215,20 +420,80 @@ function handleModalSubmit(event) {
   closeModal();
 }
 
+function showPreviousCard() {
+  const deck = getSelectedDeck();
+  if (!deck || !deck.cards.length) return;
+
+  currentCardIndex = (currentCardIndex - 1 + deck.cards.length) % deck.cards.length;
+  isStudyCardFlipped = false;
+  updateStudyCardView();
+  renderCards();
+}
+
+function showNextCard() {
+  const deck = getSelectedDeck();
+  if (!deck || !deck.cards.length) return;
+
+  currentCardIndex = (currentCardIndex + 1) % deck.cards.length;
+  isStudyCardFlipped = false;
+  updateStudyCardView();
+  renderCards();
+}
+
+function toggleStudyCard() {
+  const deck = getSelectedDeck();
+  if (!deck || !deck.cards.length) return;
+
+  isStudyCardFlipped = !isStudyCardFlipped;
+  updateStudyCardView();
+}
+
 if (deckList) {
   deckList.addEventListener('click', handleDeckListClick);
 }
 
+if (cardList) {
+  cardList.addEventListener('click', handleCardListClick);
+}
+
 if (newDeckButton) {
-  newDeckButton.addEventListener('click', () => openModal('create'));
+  newDeckButton.addEventListener('click', () => setModalMode('deck'));
 }
 
 if (addDeckButton) {
-  addDeckButton.addEventListener('click', () => openModal('create'));
+  addDeckButton.addEventListener('click', () => setModalMode('deck'));
+}
+
+if (newCardHeaderButton) {
+  newCardHeaderButton.addEventListener('click', openCardComposer);
+}
+
+if (newCardButton) {
+  newCardButton.addEventListener('click', openCardComposer);
+}
+
+if (prevCardButton) {
+  prevCardButton.addEventListener('click', showPreviousCard);
+}
+
+if (flipCardButton) {
+  flipCardButton.addEventListener('click', toggleStudyCard);
+}
+
+if (nextCardButton) {
+  nextCardButton.addEventListener('click', showNextCard);
+}
+
+if (studyCardButton) {
+  studyCardButton.addEventListener('click', toggleStudyCard);
 }
 
 if (deckForm) {
   deckForm.addEventListener('submit', handleModalSubmit);
+}
+
+if (cardForm) {
+  cardForm.addEventListener('submit', handleModalSubmit);
 }
 
 if (modal) {
