@@ -18,6 +18,10 @@ let activeCardId = null;
 let lastFocusedElement = null;
 let currentCardIndex = 0;
 let isStudyCardFlipped = false;
+let studyModeDeckId = null;
+let studyModeOrder = [];
+let studyModeActive = false;
+let studyModeKeyboardHandler = null;
 
 const deckList = document.getElementById('deck-list');
 const cardList = document.getElementById('card-list');
@@ -36,6 +40,7 @@ const newCardButton = document.getElementById('new-card-btn');
 const prevCardButton = document.getElementById('prev-card-btn');
 const flipCardButton = document.getElementById('flip-card-btn');
 const nextCardButton = document.getElementById('next-card-btn');
+const shuffleCardButton = document.getElementById('shuffle-card-btn');
 const studyCardButton = document.getElementById('study-card');
 const studyCardFront = document.getElementById('study-card-front');
 const studyCardBack = document.getElementById('study-card-back');
@@ -72,6 +77,86 @@ function clampCurrentCardIndex(deck) {
 
   if (currentCardIndex >= deck.cards.length) {
     currentCardIndex = deck.cards.length - 1;
+  }
+}
+
+function shuffleArray(items) {
+  const shuffled = [...items];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    const temp = shuffled[index];
+    shuffled[index] = shuffled[swapIndex];
+    shuffled[swapIndex] = temp;
+  }
+  return shuffled;
+}
+
+function getStudyDeckCards(deck) {
+  if (!deck || !deck.cards.length) return [];
+
+  if (studyModeOrder.length && studyModeDeckId === deck.id) {
+    return studyModeOrder
+      .map((cardId) => deck.cards.find((card) => card.id === cardId))
+      .filter(Boolean);
+  }
+
+  return deck.cards;
+}
+
+function enterStudyMode(deckId) {
+  const deck = decks.find((item) => item.id === deckId);
+  if (!deck || !deck.cards.length) return;
+
+  if (!studyModeActive || studyModeDeckId !== deck.id) {
+    studyModeOrder = deck.cards.map((card) => card.id);
+  }
+
+  studyModeDeckId = deck.id;
+  studyModeActive = true;
+  currentCardIndex = 0;
+  isStudyCardFlipped = false;
+
+  updateStudyCardView();
+  renderCards();
+
+  if (studyModeKeyboardHandler) {
+    document.removeEventListener('keydown', studyModeKeyboardHandler);
+  }
+
+  studyModeKeyboardHandler = (event) => {
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+      return;
+    }
+
+    if (event.key === ' ') {
+      event.preventDefault();
+      toggleStudyCard();
+      return;
+    }
+
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      showPreviousCard();
+      return;
+    }
+
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      showNextCard();
+      return;
+    }
+  };
+
+  document.addEventListener('keydown', studyModeKeyboardHandler);
+}
+
+function exitStudyMode() {
+  studyModeActive = false;
+  studyModeDeckId = null;
+  studyModeOrder = [];
+  if (studyModeKeyboardHandler) {
+    document.removeEventListener('keydown', studyModeKeyboardHandler);
+    studyModeKeyboardHandler = null;
   }
 }
 
@@ -144,18 +229,20 @@ function updateStudyCardView() {
   }
 
   clampCurrentCardIndex(deck);
-  const card = deck.cards[currentCardIndex];
+  const studyCards = getStudyDeckCards(deck);
+  const card = studyCards[currentCardIndex];
+  const cardData = deck.cards.find((item) => item.id === card?.id) ?? card;
 
-  if (!card) {
+  if (!cardData) {
     return;
   }
 
   deckStatus.textContent = `Card ${currentCardIndex + 1} of ${deck.cards.length}`;
   deckTitle.textContent = deck.name;
-  deckSummary.textContent = isStudyCardFlipped ? `Back: ${card.back}` : `Front: ${card.front}`;
+  deckSummary.textContent = isStudyCardFlipped ? `Back: ${cardData.back}` : `Front: ${cardData.front}`;
 
-  if (studyCardFront) studyCardFront.textContent = card.front;
-  if (studyCardBack) studyCardBack.textContent = card.back;
+  if (studyCardFront) studyCardFront.textContent = cardData.front;
+  if (studyCardBack) studyCardBack.textContent = cardData.back;
   if (studyCardButton) {
     studyCardButton.classList.toggle('is-flipped', isStudyCardFlipped);
   }
@@ -165,6 +252,7 @@ function updateDeckPreview() {
   const deck = getSelectedDeck();
 
   if (!deck) {
+    exitStudyMode();
     deckStatus.textContent = 'No deck selected';
     deckTitle.textContent = 'Create a deck';
     deckSummary.textContent = 'Use the new deck button to begin building your study set.';
@@ -174,6 +262,7 @@ function updateDeckPreview() {
     return;
   }
 
+  enterStudyMode(deck.id);
   renderCards();
   updateStudyCardView();
 }
@@ -424,7 +513,10 @@ function showPreviousCard() {
   const deck = getSelectedDeck();
   if (!deck || !deck.cards.length) return;
 
-  currentCardIndex = (currentCardIndex - 1 + deck.cards.length) % deck.cards.length;
+  const studyCards = getStudyDeckCards(deck);
+  if (!studyCards.length) return;
+
+  currentCardIndex = (currentCardIndex - 1 + studyCards.length) % studyCards.length;
   isStudyCardFlipped = false;
   updateStudyCardView();
   renderCards();
@@ -434,7 +526,10 @@ function showNextCard() {
   const deck = getSelectedDeck();
   if (!deck || !deck.cards.length) return;
 
-  currentCardIndex = (currentCardIndex + 1) % deck.cards.length;
+  const studyCards = getStudyDeckCards(deck);
+  if (!studyCards.length) return;
+
+  currentCardIndex = (currentCardIndex + 1) % studyCards.length;
   isStudyCardFlipped = false;
   updateStudyCardView();
   renderCards();
@@ -446,6 +541,17 @@ function toggleStudyCard() {
 
   isStudyCardFlipped = !isStudyCardFlipped;
   updateStudyCardView();
+}
+
+function shuffleStudyCards() {
+  const deck = getSelectedDeck();
+  if (!deck || !deck.cards.length) return;
+
+  studyModeOrder = shuffleArray(deck.cards.map((card) => card.id));
+  currentCardIndex = 0;
+  isStudyCardFlipped = false;
+  updateStudyCardView();
+  renderCards();
 }
 
 if (deckList) {
@@ -482,6 +588,10 @@ if (flipCardButton) {
 
 if (nextCardButton) {
   nextCardButton.addEventListener('click', showNextCard);
+}
+
+if (shuffleCardButton) {
+  shuffleCardButton.addEventListener('click', shuffleStudyCards);
 }
 
 if (studyCardButton) {
