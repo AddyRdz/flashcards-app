@@ -10,29 +10,45 @@
     <div class="app-shell">
       <header class="app-header">
         <h1>Flashcards</h1>
-        <button type="button">New Deck</button>
+        <button id="new-deck-btn" type="button">New Deck</button>
       </header>
 
       <aside class="sidebar">
-        <h2>Decks</h2>
-        <ul>
-          <li class="active">Spanish Basics</li>
-          <li>JavaScript</li>
-          <li>History</li>
-        </ul>
+        <div class="sidebar-heading">
+          <h2>Decks</h2>
+          <button id="add-deck-btn" type="button" class="secondary-button">+ Add</button>
+        </div>
+        <ul id="deck-list" class="deck-list" aria-label="Deck list"></ul>
       </aside>
 
       <main class="main-content">
-        <section class="card-preview">
-          <p class="card-label">Card 1 of 10</p>
-          <h3>¿Cómo estás?</h3>
-          <p>How are you?</p>
+        <section class="card-preview" aria-live="polite">
+          <p class="card-label" id="deck-status">Select a deck</p>
+          <h3 id="deck-title">No deck selected</h3>
+          <p id="deck-summary">Create or choose a deck to begin studying.</p>
         </section>
       </main>
 
       <footer class="app-footer">
         <p>Study smarter, one card at a time.</p>
       </footer>
+    </div>
+
+    <div id="deck-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-description">
+      <div class="modal-backdrop" data-close-modal="true"></div>
+      <div class="modal-panel" role="document">
+        <button class="modal-close" type="button" data-close-modal="true" aria-label="Close dialog">×</button>
+        <h2 id="modal-title">Create deck</h2>
+        <p id="modal-description">Add a new deck to your study collection.</p>
+        <form id="deck-form">
+          <label class="sr-only" for="deck-name-input">Deck name</label>
+          <input id="deck-name-input" name="deckName" type="text" required maxlength="60" autocomplete="off" />
+          <div class="modal-actions">
+            <button type="button" class="secondary-button" data-close-modal="true">Cancel</button>
+            <button type="submit">Save</button>
+          </div>
+        </form>
+      </div>
     </div>
 
     <script src="app.js"></script>

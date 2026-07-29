@@ -34,8 +34,13 @@ body {
   color: var(--text);
 }
 
+body.modal-open {
+  overflow: hidden;
+}
+
 button,
-a {
+a,
+input {
   font: inherit;
 }
 
@@ -45,9 +50,26 @@ a {
 }
 
 button:focus-visible,
-a:focus-visible {
+a:focus-visible,
+input:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 2px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .app-shell {
@@ -74,13 +96,21 @@ a:focus-visible {
   align-items: center;
 }
 
-.app-header button {
+.app-header button,
+.secondary-button,
+.modal-actions button {
   border: 0;
   background: var(--accent);
   color: white;
   padding: 0.7rem 1rem;
   border-radius: 999px;
   cursor: pointer;
+}
+
+.secondary-button,
+.modal-actions .secondary-button {
+  background: var(--surface-alt);
+  color: var(--text);
 }
 
 .app-header button:hover {
@@ -93,23 +123,63 @@ a:focus-visible {
   padding: 1.25rem;
 }
 
-.sidebar ul {
+.sidebar-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.deck-list {
   list-style: none;
   padding: 0;
   margin: 1rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-.sidebar li {
-  padding: 0.7rem 0.8rem;
-  margin-bottom: 0.5rem;
+.deck-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem;
   border-radius: var(--radius);
-  color: var(--muted);
+  background: transparent;
 }
 
-.sidebar li.active {
+.deck-item-row.selected {
+  background: var(--surface);
+}
+
+.deck-select {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.75rem;
+  cursor: pointer;
+}
+
+.deck-action-group {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.icon-button {
+  border: 0;
   background: var(--surface);
   color: var(--text);
-  font-weight: 600;
+  padding: 0.45rem 0.6rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.icon-button.danger {
+  color: #b91c1c;
 }
 
 .main-content {
@@ -144,6 +214,58 @@ a:focus-visible {
   border-bottom: none;
   text-align: center;
   color: var(--muted);
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.modal-panel {
+  position: relative;
+  width: min(92vw, 440px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.5rem;
+}
+
+.modal-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+
+#deck-name-input {
+  width: 100%;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  margin-top: 0.75rem;
+  background: var(--surface-alt);
+  color: var(--text);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
 }
 
 @media (max-width: 760px) {
